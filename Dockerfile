@@ -19,6 +19,9 @@ WORKDIR /code
 COPY pyproject.toml poetry.lock ./
 RUN poetry install --no-root --only main
 
+# 여기서 spaCy 모델 다운로드
+RUN python -m spacy download ko_core_news_lg
+
 # Final stage (슬림 + non-root)
 FROM python:3.12-slim
 

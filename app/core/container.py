@@ -49,7 +49,7 @@ class Container(containers.DeclarativeContainer):
     callbot_service = providers.Factory(CallbotService, callbot_repository=callbot_repository, llm=llm, call=call, tts=tts)
     datasync_service = providers.Factory(DataSyncService, chatbot_repository=chatbot_repository)
     chatbot_service = providers.Factory(ChatbotService, chatbot_repository=chatbot_repository)
-    ocr_service = providers.Factory(OcrService, ocr_repository=ocr_repository)
+    ocr_service = providers.Factory(OcrService, ocr_repository=ocr_repository, llm=llm)
     
     # SQS Worker & DLQ Handler
     sqs_worker = providers.Factory(
