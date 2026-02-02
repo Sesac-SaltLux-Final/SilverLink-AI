@@ -50,11 +50,6 @@ class SQSClient:
         self.dlq_url = dlq_url or configs.SQS_DLQ_URL
         self.region_name = region_name or configs.AWS_REGION
         
-        # 설정값 로깅 (민감한 정보는 마스킹)
-        logger.info(f"   📍 Region: {self.region_name}")
-        logger.info(f"   📮 Queue URL: {self.queue_url[:50]}..." if self.queue_url and len(self.queue_url) > 50 else f"   📮 Queue URL: {self.queue_url}")
-        logger.info(f"   🗑️ DLQ URL: {self.dlq_url[:50]}..." if self.dlq_url and len(self.dlq_url) > 50 else f"   🗑️ DLQ URL: {self.dlq_url}")
-        
         access_key = aws_access_key_id or configs.AWS_ACCESS_KEY_ID
         secret_key = aws_secret_access_key or configs.AWS_SECRET_ACCESS_KEY
         
@@ -105,10 +100,6 @@ class SQSClient:
                     'MessageType': {
                         'StringValue': 'CallRequest',
                         'DataType': 'String'
-                    },
-                    'ScheduleId': {
-                        'StringValue': str(message.schedule_id),
-                        'DataType': 'Number'
                     }
                 }
             )
@@ -208,10 +199,6 @@ class SQSClient:
                     'MessageType': {
                         'StringValue': 'DLQMessage',
                         'DataType': 'String'
-                    },
-                    'OriginalScheduleId': {
-                        'StringValue': str(message.schedule_id),
-                        'DataType': 'Number'
                     }
                 }
             )

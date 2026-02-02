@@ -52,6 +52,7 @@ class Configs(BaseSettings):
 
     # Spring Boot backend
     SPRING_BOOT_URL: str = os.getenv("SPRING_BOOT_URL", "http://localhost:8080")
+    SPRING_BOOT_API_TOKEN: str = os.getenv("SPRING_BOOT_API_TOKEN", "")
 
     # database
     # DB: str = os.getenv("DB", "postgresql")
@@ -102,6 +103,7 @@ class Configs(BaseSettings):
     AWS_SECRET_ACCESS_KEY: str = os.getenv("AWS_SECRET_ACCESS_KEY", "")
     SQS_QUEUE_URL: str = os.getenv("SQS_QUEUE_URL", "")
     SQS_DLQ_URL: str = os.getenv("SQS_DLQ_URL", "")
+    AWS_S3_BUCKET_NAME: str = os.getenv("AWS_S3_BUCKET_NAME", "silverlink-storage")
 
     class Config:
         case_sensitive = True

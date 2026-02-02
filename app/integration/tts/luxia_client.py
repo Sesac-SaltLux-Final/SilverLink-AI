@@ -45,9 +45,31 @@ class TTS:
             if resp.status_code == 200:
                 self.cache[text] = resp.content
                 return resp.content
+            else:
+                print(f"⚠️ TTS API Error: {resp.status_code} - {resp.text}")
+                print("🔄 Switching to OpenAI TTS Fallback...")
+                return await self._fallback_openai_tts(text)
         except Exception as e:
             print(f"TTS Error: {e}")
+            return await self._fallback_openai_tts(text)
         return None
+
+    async def _fallback_openai_tts(self, text: str):
+        from openai import AsyncOpenAI
+        from app.core.config import configs
+        
+        try:
+            client = AsyncOpenAI(api_key=configs.OPENAI_API_KEY)
+            response = await client.audio.speech.create(
+                model="tts-1",
+                voice="nova",
+                input=text,
+                response_format="wav"  # Important: request WAV for compatibility
+            )
+            return response.content
+        except Exception as e:
+            print(f"❌ Fallback TTS Error: {e}")
+            return None
         
         
 

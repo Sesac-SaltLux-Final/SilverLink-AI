@@ -8,7 +8,7 @@ import urllib.parse
 from dependency_injector.wiring import Provide
 from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import Response, StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from app.core.container import Container
 from app.core.middleware import inject_callbot
@@ -44,22 +44,21 @@ conversation_history: Dict[str, List[dict]] = {}
 # Request Schema for SQS Call Scheduling
 class CallScheduleRequest(BaseModel):
     """통화 스케줄 요청 스키마"""
-    schedule_id: int = Field(..., description="통화 스케줄 ID")
+    # schedule_id: int = Field(..., description="통화 스케줄 ID")
     elderly_id: int = Field(..., description="어르신 ID")
     elderly_name: str = Field(..., description="어르신 이름")
     phone_number: str = Field(..., description="전화번호 (E.164 형식: +821012345678)")
-    scheduled_time: datetime = Field(..., description="예약된 통화 시간")
+    # scheduled_time: datetime = Field(..., description="예약된 통화 시간")
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
-                "schedule_id": 1,
                 "elderly_id": 100,
                 "elderly_name": "홍길동",
                 "phone_number": "+821012345678",
-                "scheduled_time": "2026-01-29T10:00:00"
             }
         }
+    )
 
 @router.get("")
 @inject_callbot
@@ -76,90 +75,39 @@ def get_post_list(
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
     
-@router.get("/call")
+@router.post("/call")
 @inject_callbot
 def get_call(
+    request: CallScheduleRequest,
     service: CallbotService = Depends(Provide[Container.callbot_service]),
+    sqs_client: SQSClient = Depends(Provide[Container.sqs_client])
 ):
     logger.info("📞 [GET /callbot/call] 전화 걸기 요청")
     try:
-        result = service.make_call()
+        # SQS
+        ####################################################
+        message = CallRequestMessage(
+            message_id=str(uuid.uuid4()),
+            # schedule_id=request.schedule_id,
+            elderly_id=request.elderly_id,
+            elderly_name=request.elderly_name,
+            phone_number=request.phone_number,
+            # scheduled_time=request.scheduled_time,
+            retry_count=0
+        )
+        
+        message_id = sqs_client.publish(message)
+        if message_id:
+            logger.info(f"✅ [POST /callbot/schedule-call] SQS 발행 성공")
+            logger.info("="*50)
+        #####################################################
+        result = service.make_call(request.elderly_id,request.phone_number,request.elderly_name)
         logger.info("✅ [GET /callbot/call] 전화 걸기 성공")
         return result
     except Exception as e:
         logger.error(f"❌ [GET /callbot/call] 에러 발생: {e}")
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/schedule-call")
-@inject_callbot
-def schedule_call(
-    request: CallScheduleRequest,
-    sqs_client: SQSClient = Depends(Provide[Container.sqs_client])
-):
-    """
-    통화 스케줄 생성 및 SQS 큐에 발행
-    
-    Spring Boot BE에서 호출하거나, 직접 통화를 예약할 때 사용합니다.
-    메시지는 SQS 큐에 발행되고, Worker가 비동기로 처리합니다.
-    """
-    logger.info("="*50)
-    logger.info("📅 [POST /callbot/schedule-call] 통화 스케줄 요청")
-    logger.info(f"   schedule_id: {request.schedule_id}")
-    logger.info(f"   elderly_name: {request.elderly_name}")
-    logger.info(f"   phone_number: {request.phone_number}")
-    logger.info(f"   scheduled_time: {request.scheduled_time}")
-    
-    try:
-        # 1. SQS 메시지 생성
-        message = CallRequestMessage(
-            message_id=str(uuid.uuid4()),
-            schedule_id=request.schedule_id,
-            elderly_id=request.elderly_id,
-            elderly_name=request.elderly_name,
-            phone_number=request.phone_number,
-            scheduled_time=request.scheduled_time,
-            retry_count=0
-        )
-        
-        logger.debug(f"📝 생성된 메시지: {message.model_dump_json()}")
-        
-        # 2. SQS 큐에 발행
-        message_id = sqs_client.publish(message)
-        
-        if message_id:
-            logger.info(f"✅ [POST /callbot/schedule-call] SQS 발행 성공")
-            logger.info(f"   SQS Message ID: {message_id}")
-            logger.info("="*50)
-            
-            return {
-                "status": "queued",
-                "message_id": message_id,
-                "schedule_id": request.schedule_id,
-                "elderly_name": request.elderly_name,
-                "scheduled_time": request.scheduled_time.isoformat(),
-                "queue_url": sqs_client.queue_url
-            }
-        else:
-            logger.error("❌ [POST /callbot/schedule-call] SQS 발행 실패")
-            logger.error("="*50)
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to publish message to SQS"
-            )
-            
-    except Exception as e:
-        logger.error("="*50)
-        logger.error(f"❌ [POST /callbot/schedule-call] 에러 발생!")
-        logger.error(f"에러 타입: {type(e).__name__}")
-        logger.error(f"에러 메시지: {e}")
-        logger.error(f"스택 트레이스:\n{traceback.format_exc()}")
-        logger.error("="*50)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to schedule call: {str(e)}"
-        )
 
     
 @router.api_route("/voice", methods=["POST"])
@@ -174,25 +122,26 @@ async def voice(
     
     try:
         # 1. Form 데이터 파싱
-        logger.debug("1️⃣ Form 데이터 파싱 중...")
+        logger.debug("1️⃣ Form 데이터 및 쿼리 파라미터 파싱 중...")
         form_data = await request.form()
         call_sid = form_data.get("CallSid", "unknown")
-        logger.info(f"📋 CallSid: {call_sid}")
-        logger.debug(f"전체 Form 데이터: {dict(form_data)}")
+        phone_number = form_data.get("To")
+        
+        # 쿼리 파라미터에서 데이터 추출 (elderly_id, elderly_name)
+        elderly_id = request.query_params.get("elderly_id")
+        elderly_name = request.query_params.get("elderly_name")
         
         # 2. 대화 히스토리 초기화
         logger.debug("2️⃣ 대화 히스토리 초기화...")
         conversation_history[call_sid] = []
         
-        # 3. TwiML 생성
-        logger.debug("3️⃣ TwiML 생성 중...")
-        logger.debug(f"CALL_CONTROLL_URL: {configs.CALL_CONTROLL_URL}")
-        
-        twiml = service.build_greeting_gather_twiml(call_sid=call_sid)
-        logger.debug(f"생성된 TwiML:\n{twiml[:500]}..." if len(twiml) > 500 else f"생성된 TwiML:\n{twiml}")
-        
-        logger.info("✅ [POST /callbot/voice] 성공적으로 TwiML 반환")
-        logger.info("="*50)
+        # [Updated] await call
+        twiml = await service.build_greeting_gather_twiml(
+            call_sid=call_sid, 
+            elderly_id=elderly_id, 
+            elderly_name=elderly_name,
+            phone_number=phone_number
+        )
         return Response(content=twiml, media_type="application/xml")
         
     except Exception as e:
@@ -210,12 +159,12 @@ async def stream_response(
     text: str,
     call_sid: str = None,
     mode: str = "chat",
+    start_ts: float = 0.0,
+    elderly_id: str = None,
     service: CallbotService = Depends(Provide[Container.callbot_service])
 ):
     """Streams audio chunks dynamically generated from LLM -> TTS"""
-    logger.info(f"🎵 [GET /callbot/stream_response] 스트림 응답 요청")
-    logger.debug(f"   text: {text[:100]}..." if len(text) > 100 else f"   text: {text}")
-    logger.debug(f"   call_sid: {call_sid}, mode: {mode}")
+
     
     try:
         if call_sid:
@@ -225,7 +174,7 @@ async def stream_response(
         logger.debug(f"   history 길이: {len(history)}")
         
         return StreamingResponse(
-            service.ai_response_generator(text, history, mode),
+            service.ai_response_generator(text, history, mode, start_ts, elderly_id),
             media_type="audio/basic",
             headers={
                 "Cache-Control": "no-cache, no-store, must-revalidate",
@@ -237,25 +186,47 @@ async def stream_response(
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
     
+@router.post("/status")
+@inject_callbot
+async def call_status(
+    request: Request,
+    service: CallbotService = Depends(Provide[Container.callbot_service])
+):
+    """Twilio Call Status Callback Handler"""
+    try:
+        form_data = await request.form()
+        call_sid = form_data.get("CallSid")
+        call_status = form_data.get("CallStatus")
+        
+        logger.info(f"📞 [Status] {call_sid} -> {call_status}")
+        
+        # 통화가 종료된 경우 정리 작업 수행
+        if call_status in ["completed", "failed", "busy", "no-answer", "canceled"]:
+            await service.finalize_call(call_sid)
+            
+        return Response(status_code=200)
+    except Exception as e:
+        logger.error(f"❌ [POST /callbot/status] Error: {e}")
+        return Response(status_code=500)
+
 @router.api_route("/gather", methods=["POST"])
 @inject_callbot
 async def gather(
     request: Request,
     service: CallbotService = Depends(Provide[Container.callbot_service])
 ):
-    """Twilio SpeechResult Handler"""
-    logger.info("🎤 [POST /callbot/gather] Gather 엔드포인트 호출")
+    """Twilio SpeechResult Handler with Orchestrator Logic"""
+    # logger.info("🎤 [POST /callbot/gather] Gather 엔드포인트 호출")
     
     try:
         form_data = await request.form()
         speech_result = form_data.get("SpeechResult")
-        call_sid = form_data.get("CallSid")
+        call_sid = form_data.get("CallSid", "unknown")
         
-        logger.debug(f"   CallSid: {call_sid}")
-        logger.debug(f"   SpeechResult: {speech_result}")
+        # logger.debug(f"   CallSid: {call_sid}")
+        # logger.debug(f"   SpeechResult: {speech_result}")
             
         if not speech_result:
-            logger.warning("   ⚠️ SpeechResult 없음, 재시도 TwiML 반환")
             twiml = """
             <Response>
                 <Gather input="speech" action="/api/callbot/gather" method="POST" language="ko-KR" speechTimeout="auto">
@@ -264,21 +235,57 @@ async def gather(
             """
             return Response(content=twiml, media_type="application/xml")
 
+        # 쿼리 파라미터에서 데이터 추출 (elderly_id, elderly_name)
+        elderly_id = request.query_params.get("elderly_id")
+        elderly_name = request.query_params.get("elderly_name")
+        
         logger.info(f"🎤 사용자 발화: {speech_result}")
         
-        # Update History
-        if call_sid:
-            if call_sid not in conversation_history:
-                conversation_history[call_sid] = []
-            conversation_history[call_sid].append({"role": "user", "content": speech_result})
+        # --- Orchestrator Logic Call ---
+        start_time = datetime.now()
+        result = await service.process_conversation(call_sid,elderly_id, speech_result)
+        duration = (datetime.now() - start_time).total_seconds()
+        logger.info(f"⚡ 처리 완료 ({duration:.3f}s): Intent={result.get('intent')}")
         
-        # We pass the user text to the streaming endpoint via query param
-        encoded_text = urllib.parse.quote(speech_result)
-        # Ensure call_sid is also passed
-        stream_url = f"{configs.CALL_CONTROLL_URL}/api/callbot/stream_response?text={encoded_text}&amp;call_sid={call_sid}"
+        response_text = result.get("response", "죄송합니다, 다시 말씀해 주시겠어요?")
+        
+        # 응급 상황 처리
+        if result.get("intent") == "EMERGENCY":
+            logger.critical(f"🚨 EMERGENCY DETECTED: {call_sid}")
+            # 응급 상황 시 즉시 안내 후 종료하거나 상담원 연결
+            encoded_text = urllib.parse.quote(response_text)
+            stream_url = f"{configs.CALL_CONTROLL_URL}/api/callbot/stream_response?text={encoded_text}&amp;call_sid={call_sid}&amp;mode=tts&amp;elderly_id={elderly_id}"
+            
+            twiml = f"""
+            <Response>
+                <Play contentType="audio/basic">{stream_url}</Play>
+                <Pause length="1"/>
+                <Hangup/>
+            </Response>
+            """
+            return Response(content=twiml, media_type="application/xml")
+        
+        # 일반 대화 처리
+        encoded_text = urllib.parse.quote(response_text)
+        current_ts = datetime.now().timestamp()
+        stream_url = f"{configs.CALL_CONTROLL_URL}/api/callbot/stream_response?text={encoded_text}&amp;call_sid={call_sid}&amp;mode=tts&amp;start_ts={current_ts}&amp;elderly_id={elderly_id}"
 
-        # Return TwiML that plays the stream
-        # bargeIn="true" allows the user to interrupt the stream immediately
+        twiml = f"""
+        <Response>
+            <Gather input="speech" action="/api/callbot/gather?elderly_id={elderly_id}" method="POST" language="ko-KR" speechTimeout="auto" bargeIn="true">
+                <Play contentType="audio/basic">{stream_url}</Play>
+            </Gather>
+        </Response>
+        """
+        return Response(content=twiml, media_type="application/xml")
+        
+    except Exception as e:
+        logger.error(f"❌ [POST /callbot/gather] 에러 발생: {e}")
+        logger.error(traceback.format_exc())
+        
+        # 에러 발생 시 안전하게 다시 묻기
+        error_msg = urllib.parse.quote("죄송해요, 잠시 문제가 생겼어요. 다시 말씀해 주시겠어요?")
+        stream_url = f"{configs.CALL_CONTROLL_URL}/api/callbot/stream_response?text={error_msg}&amp;call_sid={call_sid}&amp;mode=tts"
         twiml = f"""
         <Response>
             <Gather input="speech" action="/api/callbot/gather" method="POST" language="ko-KR" speechTimeout="auto" bargeIn="true">
@@ -286,9 +293,4 @@ async def gather(
             </Gather>
         </Response>
         """
-        logger.info("✅ [POST /callbot/gather] TwiML 응답 반환")
         return Response(content=twiml, media_type="application/xml")
-    except Exception as e:
-        logger.error(f"❌ [POST /callbot/gather] 에러 발생: {e}")
-        logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=str(e))

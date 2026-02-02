@@ -27,6 +27,45 @@ def safe_print(text):
         except Exception:
             print(text.encode('ascii', 'ignore').decode('ascii'))
 
+def log_detailed(user_text, filtered_text, ai_response, target_slot, next_target_slot, deepdive_count, filled_slots, timeouts, session_id=None):
+    """요청하신 상세 포맷에 따른 로그 출력"""
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    s_id_tag = f"[{session_id[:8]}]" if session_id else "[Global]"
+    
+    # 터미널 출력
+    safe_print(f"\n{s_id_tag} 상세 처리 로그:")
+    safe_print(f"[사용자]: {user_text}")
+    safe_print(f"[필터링 결과]: {filtered_text}")
+    safe_print(f"[AI 응답]: {ai_response}")
+    safe_print(f"[현재 타겟 슬롯]: {target_slot}")
+    safe_print(f"[다음 타겟 슬롯]: {next_target_slot}")
+    safe_print(f"[딥다이브 카운트]: {deepdive_count}")
+    
+    if isinstance(filled_slots, dict):
+        safe_print(f"[채워진 슬롯]: {list(filled_slots.keys())}")
+        safe_print(f"[슬롯 내용]: {filled_slots}")
+    else:
+        safe_print(f"[채워진 슬롯]: {filled_slots}")
+    
+    timeout_str = ", ".join([
+        f"'{k}': '{v:.3f}s'" if isinstance(v, (int, float)) else f"'{k}': '{v}'"
+        for k, v in timeouts.items()
+    ])
+    safe_print(f"[타임아웃]: {{{timeout_str}}}")
+
+    # 파일 기록 (선택 사항)
+    log_entry = (
+        f"[{timestamp}] {s_id_tag}\n"
+        f"User: {user_text}\nFiltered: {filtered_text}\nAI: {ai_response}\n"
+        f"Target: {target_slot} | Next Target: {next_target_slot} | Deepdive: {deepdive_count}\n"
+        f"Filled: {filled_slots}\nTimeouts: {timeouts}\n" + "-"*50
+    )
+    try:
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(log_entry + "\n")
+    except Exception as e:
+        print(f"Log Write Error: {e}")
+
 def log_conversation(role, message, session_id=None, latency=None, level="INFO"):
     """대화 내용을 콘솔과 파일에 기록 (세션별 로그 분리 + 로그 레벨 + 세션 구분)"""
     if LOG_LEVELS.get(level, 20) < LOG_LEVELS.get(CURRENT_LOG_LEVEL, 20):

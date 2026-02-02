@@ -6,7 +6,7 @@ authors = [
     {name = "SeongHo Kim",email = "kkb053404@gmail.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.12,<4.0"
+requires-python = ">=3.12,<3.14"
 dependencies = [
     "fastapi (>=0.128.0,<0.129.0)",
     "dotenv (>=0.9.9,<0.10.0)",
@@ -26,7 +26,13 @@ dependencies = [
     "langgraph (>=1.0.7,<2.0.0)",
     "python-dotenv (>=1.2.1,<2.0.0)",
     "faker (>=40.1.2,<41.0.0)",
-    "boto3 (>=1.42.37,<2.0.0)"
+    "boto3 (>=1.42.37,<2.0.0)",
+    "huggingface-hub (>=1.3.5,<2.0.0)",
+    "spacy (>=3.8.11,<4.0.0)",
+    "presidio-analyzer (>=2.2.360,<3.0.0)",
+    "presidio-anonymizer (>=2.2.360,<3.0.0)",
+    "mem0ai (>=1.0.2,<2.0.0)",
+    "sentence-transformers (>=5.2.2,<6.0.0)"
 ]
 
 
