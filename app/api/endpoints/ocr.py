@@ -16,6 +16,29 @@ router = APIRouter(
 )
 
 
+# Request/Response 스키마
+class ValidateMedicationRequest(BaseModel):
+    ocr_text: str
+    elderly_user_id: Optional[int] = None
+
+
+class MedicationInfo(BaseModel):
+    medication_name: str
+    dosage: Optional[str] = None
+    times: List[str]
+    instructions: Optional[str] = None
+    confidence: float
+
+
+class ValidateMedicationResponse(BaseModel):
+    success: bool
+    medications: List[MedicationInfo]
+    raw_ocr_text: str
+    llm_analysis: str
+    warnings: List[str]
+    error_message: Optional[str] = None
+
+
 @router.get(
     "",
     summary="OCR 서비스 테스트",

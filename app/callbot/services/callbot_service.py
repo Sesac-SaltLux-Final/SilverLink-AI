@@ -18,7 +18,6 @@ from datetime import datetime
 os.environ["MEM0_TELEMETRY"] = "false"
 
 from pydantic import BaseModel, Field
-from openai import AsyncOpenAI
 from huggingface_hub import hf_hub_download
 from llama_cpp import Llama, LlamaGrammar
 
@@ -160,7 +159,12 @@ class CallSession:
                 "deep_dive_count": 0,
                 "current_topic": None,
                 "last_action": None,
-                "history": []
+                "history": [],
+                "final_analysis": None,
+                "analysis_ready": False,
+                "recording_ready": False,
+                "s3_uri": None,
+                "final_duration": 0
             }
         return cls._sessions[call_sid]
 
@@ -222,7 +226,7 @@ class CallbotService(BaseService):
                 # 안전하게 await로 저장 후 진행하거나, create_task로 던짐.
                 # 에러 메시지("연결할 발화 없음")를 피하려면 어르신 답변보다 이게 먼저 DB에 들어가야 함.
                 await self._send_message_to_backend(call_id, "CALLBOT", greeting)
-                print(f"✅ [Call Start] Saved initial greeting to backend.")
+                print("✅ [Call Start] Saved initial greeting to backend.")
             except Exception as e:
                 print(f"⚠️ [Call Start] Failed to save greeting: {e}")
 
@@ -285,7 +289,7 @@ class CallbotService(BaseService):
         
         # 401 Unauthorized Error Handling
         if res and isinstance(res, dict) and res.get("error") == "UNAUTHORIZED_401":
-            print(f"⚠️ [Backend] Token expired (401). Retrying login...")
+            print("⚠️ [Backend] Token expired (401). Retrying login...")
             configs.SPRING_BOOT_API_TOKEN = None # Clear token
             await self._login_backend() # Re-login
             
@@ -314,7 +318,8 @@ class CallbotService(BaseService):
 
     async def _send_message_to_backend(self, call_id: int, speaker: str, content: str, danger: bool = False, danger_reason: str = None):
         """대화 메시지 저장 API 호출 (CALLBOT 또는 ELDERLY)"""
-        if not call_id: return
+        if not call_id: 
+            return
         url = f"{configs.SPRING_BOOT_URL}/api/internal/callbot/calls/{call_id}/messages"
         payload = {
             "speaker": speaker,
@@ -327,17 +332,24 @@ class CallbotService(BaseService):
         await self._call_backend_api(url, payload)
 
     async def _send_end_call_to_backend(self, call_id: int, duration: int, summary: str, emotion: str, daily_status: dict, recording_url: str = None):
-        """통화 종료 API 호출 (종합 데이터 포함)"""
-        if not call_id: return
+        """통화 종료 API 호출 (EndCallRequest DTO 일치)"""
+        if not call_id: 
+            return
         url = f"{configs.SPRING_BOOT_URL}/api/internal/callbot/calls/{call_id}/end"
         
+        # 제공해주신 EndCallRequest DTO 구조와 100% 일치시킴
         payload = {
-            "callTimeSec": duration,
+            "callTimeSec": int(duration),
             "recordingUrl": recording_url,
             "summary": {"content": summary},
             "emotion": {"emotionLevel": emotion},
             "dailyStatus": daily_status
         }
+        
+        # 디버깅을 위해 전송 직전 데이터를 정제해서 출력
+        print(f"📤 [Backend Request] POST {url}")
+        print(f"📦 [Payload] {json.dumps(payload, ensure_ascii=False)}")
+        
         await self._call_backend_api(url, payload)
 
     # --- Orchestrator Logic ---
@@ -374,7 +386,8 @@ class CallbotService(BaseService):
 
     async def get_intent_async(self, text: str) -> str:
         clean_text = text.strip()
-        if len(clean_text) <= 5: return "GENERAL"
+        if len(clean_text) <= 5: 
+            return "GENERAL"
         
         emergency_keywords = ["살려줘", "숨이 안", "숨 못", "가슴이 아파", "쓰러졌", "119", "죽을 것 같", "도와줘", "큰일났어"]
         if any(k in clean_text for k in emergency_keywords):
@@ -455,7 +468,8 @@ Output:<|im_end|>
             final_response = "어르신, 지금 바로 119에 도움을 요청하겠습니다! 잠시만 기다려주세요."
             
             # Update History for Emergency
-            if "history" not in session: session["history"] = []
+            if "history" not in session: 
+                session["history"] = []
             session["history"].append({"user": user_input, "ai": final_response})
             
             timeouts['total_processing'] = time.time() - start_total
@@ -583,7 +597,8 @@ Output:<|im_end|>
 
     async def _summarize_conversation(self, history: List[Dict]) -> str:
         """Generates a concise summary of the conversation using OpenAI."""
-        if not history: return "대화 내용 없음."
+        if not history: 
+            return "대화 내용 없음."
         
         conversation_text = "\n".join([f"User: {turn['user']}\nAI: {turn['ai']}" for turn in history])
         
@@ -609,7 +624,8 @@ Output:<|im_end|>
 
     async def _analyze_sentiment_with_llm(self, text: str) -> str:
         """Analyzes sentiment (GOOD, BAD, NORMAL) using LLM."""
-        if not text: return "NORMAL"
+        if not text: 
+            return "NORMAL"
         
         prompt = f"""
         Analyze the sentiment of the following text regarding health or sleep condition.
@@ -627,8 +643,10 @@ Output:<|im_end|>
                 temperature=0.0
             )
             result = response.choices[0].message.content.strip().upper()
-            if "GOOD" in result: return "GOOD"
-            if "BAD" in result: return "BAD"
+            if "GOOD" in result: 
+                return "GOOD"
+            if "BAD" in result: 
+                return "BAD"
             return "NORMAL"
         except Exception as e:
             print(f"Sentiment Analysis Error: {e}")
@@ -636,7 +654,8 @@ Output:<|im_end|>
 
     async def _analyze_meal_status_with_llm(self, text: str) -> bool:
         """Analyzes meal status (True/False) using LLM."""
-        if not text: return False
+        if not text: 
+            return False
         
         prompt = f"""
         Determine if the user has eaten a meal based on the text.
@@ -681,7 +700,8 @@ Output:<|im_end|>
 
     async def _analyze_overall_emotion(self, history: List[Dict]) -> str:
         """Infers overall emotion from conversation history using LLM"""
-        if not history: return "NORMAL"
+        if not history: 
+            return "NORMAL"
         
         conversation_text = "\n".join([f"User: {turn['user']}\nAI: {turn['ai']}" for turn in history])
         
@@ -712,18 +732,28 @@ Output:<|im_end|>
             print(f"Emotion Analysis Error: {e}")
             return "NORMAL"
 
-    async def _upload_recordings(self, call_sid: str) -> Optional[str]:
+    async def _upload_recordings(self, call_sid: str) -> Optional[tuple[str, int]]:
+        """Twilio API를 통해 녹음 파일을 찾아 S3에 업로드하고 (URL, 시간) 반환"""
         def _sync_upload():
             try:
                 twilio_client = TwilioClient(configs.TWILIO_SID, configs.TWILIO_TOKEN)
-                recordings = twilio_client.recordings.list(call_sid=call_sid, limit=1)
+                
+                # 녹음 파일이 생성될 때까지 최대 10초간 대기 (2초 간격 5회)
+                recordings = None
+                for i in range(5):
+                    recordings = twilio_client.recordings.list(call_sid=call_sid, limit=1)
+                    if recordings:
+                        break
+                    print(f"⏳ [Recording] Waiting for Twilio to process recording... ({i+1}/5)")
+                    time.sleep(2)
                 
                 if not recordings:
                     print(f"⚠️ [Recording] No recordings found for {call_sid}")
-                    return None
+                    return None, 0
 
                 record = recordings[0]
                 recording_sid = record.sid
+                duration = getattr(record, 'duration', 0)
                 media_url = f"https://api.twilio.com/2010-04-01/Accounts/{configs.TWILIO_SID}/Recordings/{recording_sid}.mp3"
                 
                 print(f"📥 [Recording] Downloading {media_url}...")
@@ -737,61 +767,150 @@ Output:<|im_end|>
                         aws_secret_access_key=configs.AWS_SECRET_ACCESS_KEY
                     )
                     file_key = f"private/voice/{recording_sid}.mp3"
-                    print(f"📤 [Recording] Uploading to S3: {configs.AWS_S3_BUCKET_NAME}/{file_key}")
-                    
                     s3_client.put_object(
                         Bucket=configs.AWS_S3_BUCKET_NAME,
                         Key=file_key,
                         Body=response.content,
                         ContentType="audio/mpeg"
                     )
-                    print(f"✅ [Recording] Upload success: {file_key}")
-                    return file_key
-                else:
-                    print(f"❌ [Recording] Failed to download: {response.status_code}")
-                    return None
+                    s3_uri = f"s3://{configs.AWS_S3_BUCKET_NAME}/{file_key}"
+                    print(f"✅ [Recording] S3 Upload Success: {s3_uri}")
+                    return s3_uri, int(duration)
+                return None, 0
             except Exception as e:
-                print(f"❌ [Recording] Error uploading: {e}")
-                traceback.print_exc()
-                return None
+                print(f"❌ [Recording] Error: {e}")
+                return None, 0
         
         return await asyncio.to_thread(_sync_upload)
 
+    async def _perform_final_backend_update(self, call_sid: str, session: dict):
+        """세션에 모인 모든 데이터(분석+녹음)를 백엔드에 최종 전송"""
+        call_id = session.get("call_id")
+        final_data = session.get("final_analysis")
+        s3_uri = session.get("s3_uri")
+        duration = session.get("final_duration", 0)
+
+        if not call_id or not final_data:
+            print(f"⚠️ [Final Update] Missing data for Call {call_sid}. ID: {call_id}, Analysis: {bool(final_data)}")
+            return
+
+        print(f"🚀 [Final Update] Sending to Backend: CallID={call_id}, Duration={duration}, S3={s3_uri}")
+        await self._send_end_call_to_backend(
+            call_id, 
+            int(duration), 
+            final_data["summary"], 
+            final_data["emotion"], 
+            final_data["daily_status"], 
+            s3_uri
+        )
+        
+        # 전송 완료 후 세션 삭제
+        CallSession.clear_session(call_sid)
+        print(f"✅ [Final Update] Call {call_id} fully processed and session cleared.")
+
+    async def upload_recording_from_url(self, recording_url: str, recording_sid: str, call_sid: str = None, duration: int = None) -> Optional[str]:
+        """Twilio Callback에서 받은 URL로 S3에 업로드 후, 분석 결과가 있다면 백엔드 전송"""
+        def _sync_upload():
+            try:
+                media_url = f"{recording_url}.mp3"
+                print(f"📥 [Callback Upload] Downloading {media_url}...")
+                response = requests.get(media_url) 
+                if response.status_code == 200:
+                    s3_client = boto3.client("s3", region_name=configs.AWS_REGION, 
+                                           aws_access_key_id=configs.AWS_ACCESS_KEY_ID, 
+                                           aws_secret_access_key=configs.AWS_SECRET_ACCESS_KEY)
+                    file_key = f"private/voice/{recording_sid}.mp3"
+                    s3_client.put_object(Bucket=configs.AWS_S3_BUCKET_NAME, Key=file_key, 
+                                       Body=response.content, ContentType="audio/mpeg")
+                    return f"s3://{configs.AWS_S3_BUCKET_NAME}/{file_key}"
+                return None
+            except Exception as e:
+                print(f"❌ [Callback Upload] S3 Error: {e}")
+                return None
+
+        s3_uri = await asyncio.to_thread(_sync_upload)
+        
+        if call_sid:
+            session = CallSession.get_session(call_sid)
+            session["s3_uri"] = s3_uri
+            
+            # 콜백으로 온 duration이 있다면 이를 최우선으로 사용 (0보다 클 때만)
+            if duration is not None and int(duration) > 0:
+                session["final_duration"] = int(duration)
+                print(f"⏱️ [Callback Upload] Duration updated to recording length: {duration}s")
+            
+            session["recording_ready"] = True
+            
+            # finalize_call이 이미 분석을 마쳤다면 최종 전송
+            if session.get("analysis_ready"):
+                await self._perform_final_backend_update(call_sid, session)
+            else:
+                print("⏳ [Callback Upload] Recording ready, waiting for analysis to complete...")
+        
+        return s3_uri
+
     async def finalize_call(self, call_sid: str, duration: str = "0"):
-        """Called when Twilio call status is 'completed' to save history."""
+        """통화 종료 시 분석 수행 후, 녹음이 준비되었다면 백엔드 전송"""
         session = CallSession.get_session(call_sid)
         history = session.get("history", [])
         call_id = session.get("call_id")
         
-        # [New] Upload Recording
-        recording_key = await self._upload_recordings(call_sid)
-        
+        print(f"🏁 [Finalize Call] Sid: {call_sid}, CallID: {call_id}, History: {len(history)} turns")
+
+        if not call_id:
+            print("⚠️ [Finalize Call] No call_id found. Clearing session.")
+            CallSession.clear_session(call_sid)
+            return
+
+        # 1. 대화 분석 (요약, 감정, 상태)
         if history:
-            # 1. Save to Long-term Memory (Mem0)
+            summary = await self._summarize_conversation(history)
+            daily_status = await self._map_slots_to_daily_status(session.get("slots", {}))
+            emotion = await self._analyze_overall_emotion(history)
             if orchestrator_engine.memory:
-                print(f"📞 [Call End] Triggering batch save for {len(history)} turns.")
                 await self._save_full_history_async(call_sid, history)
-            
-            # 2. Finalize to Backend
-            if call_id:
-                print(f"📝 [Call End] Finalizing backend data for call {call_id}...")
-                summary = await self._summarize_conversation(history)
-                daily_status = await self._map_slots_to_daily_status(session.get("slots", {}))
-                emotion = await self._analyze_overall_emotion(history)
-                
-                try: duration_sec = int(duration)
-                except: duration_sec = 0
-                
-                await self._send_end_call_to_backend(call_id, duration_sec, summary, emotion, daily_status, recording_key)
-                print("✅ [Backend] Call Finalized successfully.")
+        else:
+            summary = "통화 내용 없음 (짧은 통화)"
+            daily_status = {"mealTaken": False, "healthStatus": "NORMAL", "healthDetail": "", "sleepStatus": "NORMAL", "sleepDetail": ""}
+            emotion = "NORMAL"
+
+        # 2. 분석 결과 세션에 저장
+        session["final_analysis"] = {
+            "summary": summary,
+            "daily_status": daily_status,
+            "emotion": emotion
+        }
+        session["analysis_ready"] = True
         
-        # Finally clear the session
-        CallSession.clear_session(call_sid)
-        print(f"🧹 [Call End] Session cleared for {call_sid}")
+        # 콜백에서 아직 정확한 시간이 안 왔거나 현재 저장된 시간이 0인 경우에만 업데이트
+        new_duration = 0
+        try: 
+            new_duration = int(duration)
+        except Exception: 
+            pass
+        
+        if (session.get("final_duration") or 0) == 0 and new_duration > 0:
+            session["final_duration"] = new_duration
+            print(f"⏱️ [Finalize Call] Duration set from Call Status: {new_duration}s")
+
+        # 3. 녹음 콜백이 이미 도착했는지 확인 후 전송
+        if session.get("recording_ready"):
+            await self._perform_final_backend_update(call_sid, session)
+        else:
+            print("⏳ [Finalize Call] Analysis ready, waiting for Twilio Recording Callback...")
+            # 안전장치: 만약 30초 내에 녹음 콜백이 안 오면 분석 결과만이라도 전송하도록 예약 가능 (생략 가능)
+            async def _safety_fallback():
+                await asyncio.sleep(30)
+                active_session = CallSession.get_session(call_sid)
+                if active_session.get("analysis_ready") and not active_session.get("recording_ready"):
+                    print("🚨 [Safety Fallback] Recording callback timed out. Sending analysis only.")
+                    await self._perform_final_backend_update(call_sid, active_session)
+            asyncio.create_task(_safety_fallback())
 
     async def _save_full_history_async(self, user_id: str, history: List[Dict]):
         """Helper to save full history to Mem0 in background"""
-        if not orchestrator_engine.memory: return
+        if not orchestrator_engine.memory: 
+            return
         
         def _batch_save():
             for turn in history:
@@ -842,7 +961,8 @@ Output:<|im_end|>
         """
         Sentence-level TTS Streaming: Splits text and streams audio for each sentence immediately.
         """
-        if not text: return
+        if not text: 
+            return
         
         try:
             sentences = re.split(r'(?<=[.!?])\s*', text)

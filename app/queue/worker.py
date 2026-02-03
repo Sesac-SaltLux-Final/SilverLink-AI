@@ -14,7 +14,6 @@ from app.queue.sqs_client import SQSClient
 from app.queue.message_schema import CallRequestMessage, CallResultMessage, CallStatus
 from app.callbot.services.callbot_service import CallbotService
 from app.integration.call import CALL
-from app.core.config import configs
 
 logger = logging.getLogger(__name__)
 

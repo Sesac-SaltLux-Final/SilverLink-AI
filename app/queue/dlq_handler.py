@@ -10,7 +10,6 @@ from datetime import datetime
 
 from app.queue.sqs_client import SQSClient
 from app.queue.message_schema import DLQMessage, CallRequestMessage
-from app.core.config import configs
 
 logger = logging.getLogger(__name__)
 

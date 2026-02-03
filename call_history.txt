@@ -510,3 +510,59 @@ Target: 식사 여부 | Next Target: 건강 상태 | Deepdive: 1
 Filled: {'식사 여부': '밥 먹었습니다.'}
 Timeouts: {'stt_processing': 'External (Twilio)', 'pii_filtering': 0.0059986114501953125, 'memory_search': 0.05508875846862793, 'intent_check': 0.5057718753814697, 'unified_llm_processing': 2.14805269241333, 'total_processing': 2.714911937713623}
 --------------------------------------------------
+[2026-02-02 14:19:39] [CAaf90bf]
+User: 여보세요 여보세요!
+Filtered: 여보세요 여보세요!
+AI: 안녕하세요! 어떻게 도와드릴까요? 식사 여부는 어떠신가요?
+Target: 식사 여부 | Next Target: 식사 여부 | Deepdive: 0
+Filled: {}
+Timeouts: {'stt_processing': 'External (Twilio)', 'pii_filtering': 0.009589672088623047, 'memory_search': 0.09280824661254883, 'intent_check': 0.5924530029296875, 'unified_llm_processing': 2.9041054248809814, 'total_processing': 3.5998637676239014}
+--------------------------------------------------
+[2026-02-02 14:28:08] [CA9e8628]
+User: 권태현 바보.
+Filtered: 권태현 바보.
+AI: 혹시 걱정거리라도 있나요? 기분이 어떠세요?
+Target: 식사 여부 | Next Target: 식사 여부 | Deepdive: 0
+Filled: {}
+Timeouts: {'stt_processing': 'External (Twilio)', 'pii_filtering': 0.008031368255615234, 'memory_search': 0.06703591346740723, 'intent_check': 0.2261967658996582, 'unified_llm_processing': 1.8039524555206299, 'total_processing': 2.1052165031433105}
+--------------------------------------------------
+[2026-02-02 14:30:34] [CA6f7ff0]
+User: 권태연 바보 1.
+Filtered: 권태연 바보 1.
+AI: 하하, 시간이 지나면 좋아질 거예요! 오늘 기분은 어때요?
+Target: 식사 여부 | Next Target: 식사 여부 | Deepdive: 0
+Filled: {}
+Timeouts: {'stt_processing': 'External (Twilio)', 'pii_filtering': 0.008003711700439453, 'memory_search': 0.06582522392272949, 'intent_check': 0.23397254943847656, 'unified_llm_processing': 2.0227162837982178, 'total_processing': 2.3305177688598633}
+--------------------------------------------------
+[2026-02-02 14:31:41] [CA8f7e54]
+User: 권태연 바보이.
+Filtered: 권태연 바보이.
+AI: 그렇게 말씀하지 마세요. 무슨 일 있었나요?
+Target: 식사 여부 | Next Target: 식사 여부 | Deepdive: 0
+Filled: {}
+Timeouts: {'stt_processing': 'External (Twilio)', 'pii_filtering': 0.010074377059936523, 'memory_search': 0.08732819557189941, 'intent_check': 0.5197229385375977, 'unified_llm_processing': 2.2618088722229004, 'total_processing': 2.878934383392334}
+--------------------------------------------------
+[2026-02-02 14:55:39] [CAeb4665]
+User: 권태현 바보 멍청이.
+Filtered: 권태현 바보 멍청이.
+AI: 일상의 스트레스가 많은가 보네요. 요즘 기분은 어떤가요?
+Target: 식사 여부 | Next Target: 식사 여부 | Deepdive: 0
+Filled: {}
+Timeouts: {'stt_processing': 'External (Twilio)', 'pii_filtering': 0.01115107536315918, 'memory_search': 0.07334375381469727, 'intent_check': 0.22219514846801758, 'unified_llm_processing': 2.1758270263671875, 'total_processing': 2.4825170040130615}
+--------------------------------------------------
+[2026-02-02 15:03:35] [CA9f6903]
+User: 권지현 바보.
+Filtered: 권지현 바보.
+AI: 이해해요, 저도 가끔 그래요. 무슨 일이 있었는지 이야기해 줄래요?
+Target: 식사 여부 | Next Target: 식사 여부 | Deepdive: 0
+Filled: {}
+Timeouts: {'stt_processing': 'External (Twilio)', 'pii_filtering': 0.014621496200561523, 'memory_search': 0.10832405090332031, 'intent_check': 0.5072431564331055, 'unified_llm_processing': 2.077895402908325, 'total_processing': 2.7080841064453125}
+--------------------------------------------------
+[2026-02-02 15:07:27] [CAef347c]
+User: 여보세요!
+Filtered: 여보세요!
+AI: 여보세요! 어떻게 지내고 계신가요? 식사 여부는 어떻게 되세요?
+Target: 식사 여부 | Next Target: 식사 여부 | Deepdive: 0
+Filled: {}
+Timeouts: {'stt_processing': 'External (Twilio)', 'pii_filtering': 0.011002063751220703, 'memory_search': 0.10232114791870117, 'intent_check': 0.0, 'unified_llm_processing': 1.9004490375518799, 'total_processing': 2.0137722492218018}
+--------------------------------------------------

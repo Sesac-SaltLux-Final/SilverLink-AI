@@ -13,7 +13,7 @@ import boto3
 from botocore.exceptions import ClientError
 
 from app.core.config import configs
-from app.queue.message_schema import CallRequestMessage, CallResultMessage
+from app.queue.message_schema import CallRequestMessage
 
 logger = logging.getLogger(__name__)
 

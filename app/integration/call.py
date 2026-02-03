@@ -1,4 +1,5 @@
 from twilio.rest import Client
+import urllib.parse
 
 class CALL:
     def __init__(self, account_sid: str, auth_token: str, url: str, number: str, silverlink_number: str):
@@ -9,7 +10,6 @@ class CALL:
         self.silverlink_number = silverlink_number
         
     def calling(self, elderly_id: int, phone_number: str, elderly_name: str) -> None:
-        import urllib.parse
         # 계정 정보
         account_sid = self.account_sid
         auth_token = self.auth_token
@@ -29,6 +29,8 @@ class CALL:
             url=my_server_url,        # 우리가 만든 AI 서버 주소
             status_callback=f"{self.url}/api/callbot/status",
             status_callback_event=["completed"],
-            record=True
+            record=True,
+            recording_status_callback=f"{self.url}/api/callbot/s3-upload",
+            recording_status_callback_method='POST'
         )
         
