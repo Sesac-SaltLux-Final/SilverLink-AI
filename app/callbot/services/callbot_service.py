@@ -589,8 +589,12 @@ Output:<|im_end|>
             session["history"].append({"user": raw_user_input, "ai": final_response})
             
             if call_id:
-                asyncio.create_task(self._send_message_to_backend(call_id, "ELDERLY", raw_user_input))
-                asyncio.create_task(self._send_message_to_backend(call_id, "CALLBOT", final_response))
+                # 1. User message (Immediate & Await)
+                await self._send_message_to_backend(call_id, "ELDERLY", raw_user_input)
+                
+                # 2. Bot message (Delayed 1s & Await)
+                await asyncio.sleep(1) # Force 1s delay
+                await self._send_message_to_backend(call_id, "CALLBOT", final_response)
             
             CallSession.update_session(call_sid, session)
             asyncio.create_task(self.finalize_call(call_sid, "0"))

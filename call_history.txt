@@ -2142,3 +2142,27 @@ Target: 식사 여부 | Next Target: 식사 여부 | Deepdive: 0
 Filled: {}
 Timeouts: {'stt_processing': 'External (Twilio)', 'pii_filtering': 0.006701231002807617, 'memory_search': 0.08359670639038086, 'intent_check': 0.771817684173584, 'unified_llm_processing': 0.8321704864501953, 'total_processing': 1.6951532363891602}
 --------------------------------------------------
+[2026-02-06 01:37:58] [CA2f0220]
+User: 안녕!
+Filtered: 안녕!
+AI: 죄송합니다, 잠시 문제가 생겼어요.
+Target: 식사 여부 | Next Target: 식사 여부 | Deepdive: 0
+Filled: {}
+Timeouts: {'stt_processing': 'External (Twilio)', 'pii_filtering': 0.015146493911743164, 'memory_search': 0.022344112396240234, 'intent_check': 0.0, 'unified_llm_processing': 1.1732184886932373, 'total_processing': 1.2116870880126953}
+--------------------------------------------------
+[2026-02-06 01:38:02] [CA2f0220]
+User: 안녕!
+Filtered: 안녕!
+AI: 안녕하세요! 오늘 기분이 어떠신가요?
+Target: 식사 여부 | Next Target: 식사 여부 | Deepdive: 0
+Filled: {}
+Timeouts: {'stt_processing': 'External (Twilio)', 'pii_filtering': 0.011498451232910156, 'memory_search': 0.022429704666137695, 'intent_check': 0.0, 'unified_llm_processing': 0.9941480159759521, 'total_processing': 1.028076171875}
+--------------------------------------------------
+[2026-02-06 01:43:21] [CAb7bba8]
+User: 안녕!
+Filtered: 안녕!
+AI: 죄송합니다, 잠시 문제가 생겼어요.
+Target: 식사 여부 | Next Target: 식사 여부 | Deepdive: 0
+Filled: {}
+Timeouts: {'stt_processing': 'External (Twilio)', 'pii_filtering': 0.009319067001342773, 'memory_search': 0.01908564567565918, 'intent_check': 0.0, 'unified_llm_processing': 0.8845162391662598, 'total_processing': 0.9134616851806641}
+--------------------------------------------------
