@@ -43,26 +43,12 @@ class SQSClient:
             aws_access_key_id: AWS Access Key
             aws_secret_access_key: AWS Secret Key
         """
-        logger.info("="*50)
-        logger.info("🔧 SQS Client 초기화 시작...")
-        
         self.queue_url = queue_url or configs.SQS_QUEUE_URL
         self.dlq_url = dlq_url or configs.SQS_DLQ_URL
         self.region_name = region_name or configs.AWS_REGION
         
         access_key = aws_access_key_id or configs.AWS_ACCESS_KEY_ID
         secret_key = aws_secret_access_key or configs.AWS_SECRET_ACCESS_KEY
-        
-        # Access Key 마스킹 로깅
-        if access_key:
-            logger.info(f"   🔑 Access Key: {access_key[:8]}...{'*' * 8}")
-        else:
-            logger.warning("   ⚠️ Access Key: 설정되지 않음!")
-            
-        if secret_key:
-            logger.info(f"   🔐 Secret Key: {'*' * 8}...{secret_key[-4:]}")
-        else:
-            logger.warning("   ⚠️ Secret Key: 설정되지 않음!")
         
         try:
             # SQS 클라이언트 생성
@@ -72,13 +58,9 @@ class SQSClient:
                 aws_access_key_id=access_key,
                 aws_secret_access_key=secret_key
             )
-            logger.info("✅ SQS Client 초기화 성공!")
         except Exception as e:
             logger.error(f"❌ SQS Client 초기화 실패: {e}")
-            logger.error(f"   에러 타입: {type(e).__name__}")
             raise
-        
-        logger.info("="*50)
     
     def publish(self, message: CallRequestMessage, delay_seconds: int = 0) -> Optional[str]:
         """

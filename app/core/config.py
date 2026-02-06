@@ -59,6 +59,8 @@ class Configs(BaseSettings):
         # SPRING_BOOT_URL에 프로토콜이 없으면 http:// 추가
         if self.SPRING_BOOT_URL and not self.SPRING_BOOT_URL.startswith(('http://', 'https://')):
             self.SPRING_BOOT_URL = f'http://{self.SPRING_BOOT_URL}'
+    ADMIN_ID: str = os.getenv("ADMIN_ID", "admin01")
+    ADMIN_PW: str = os.getenv("ADMIN_PW", "admin01")
 
     # database
     # DB: str = os.getenv("DB", "postgresql")

@@ -196,4 +196,3 @@ ipython_config.py
 
 logs/
 mem_db/.lock
-mem_db/.sqlite 

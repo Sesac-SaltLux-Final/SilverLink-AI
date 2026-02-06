@@ -63,7 +63,7 @@ async def send_data_to_backend(
 
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 401:
-                logger.warning(f"⚠️ Auth Failed (401): Check 'SPRING_BOOT_API_TOKEN'. Server said: {e.response.text}")
+                logger.info(f"🔑 Auth required (401) for {url}. Returning status for automatic retry.")
                 return {"error": "UNAUTHORIZED_401"}
             else:
                 logger.error(f"❌ HTTP Error: {e.response.status_code} - {e.response.text}")

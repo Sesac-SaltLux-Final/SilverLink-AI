@@ -42,6 +42,9 @@ loguru_logger.add(sys.stderr, level="INFO")
 # httpcore와 httpx의 DEBUG 로그 비활성화
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("twilio").setLevel(logging.WARNING) # Twilio API 전체 로그 비활성화
+logging.getLogger("twilio.http").setLevel(logging.WARNING) # Twilio API HTTP 로그 비활성화
+logging.getLogger("presidio_analyzer").setLevel(logging.ERROR) # Presidio 경고 숨기기
 
 # logger = logging.getLogger(__name__) # Loguru logger는 전역적으로 사용 가능하므로 제거 혹은 호환성 유지
 logger = logging.getLogger("app.main") # 호환성을 위해 유지하되, 로그는 InterceptHandler를 통해 Loguru로 전달됨
@@ -94,23 +97,38 @@ class AppCreator:
             else:
                 print("⚠️ Orchestrator (Qwen) not loaded yet.")
 
-            # 2. OpenAI Warm-up
+            # 2. OpenAI Warm-up (Real Request)
             llm_service = self.container.llm()
-            if hasattr(llm_service, "client") and llm_service.client:
-                 print("✅ OpenAI Client Ready.")
+            if hasattr(llm_service, "client"):
+                print("🚀 Sending dummy request to OpenAI...")
+                await llm_service.aclient.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content": "hi"}],
+                    max_tokens=1
+                )
+                print("✅ OpenAI Connection Established.")
         except Exception as e:
              print(f"⚠️ Model Warm-up Failed: {e}")
              import traceback
              traceback.print_exc()
 
-        print("⏳ Prefetching Greeting TTS...")
+        print("⏳ Prefetching Greeting & Goodbye TTS...")
         try:
             # self.container를 직접 사용하여 더 안전함
             tts_service = self.container.tts()
+            greeting = "안녕하세요! 찬주님 실버링크에서 연락드렸습니다. 잘 지내시죠?"
+            bye_msg = "네, 알겠습니다. 어르신, 편히 쉬시고 다음에 또 목소리 들려주세요. 건강하세요!"
+            
             await tts_service.asultlux(greeting)
-            print("✅ Greeting TTS Prefetched!")
+            await tts_service.asultlux(bye_msg)
+            print("✅ Greeting & Goodbye TTS Prefetched!")
+            
+            # [추가] 백엔드 로그인 시도
+            callbot_service = self.container.callbot_service()
+            await callbot_service._login_backend()
+            print("✅ Backend Login successful on startup.")
         except Exception as e:
-            print(f"⚠️ Prefetch failed: {e}")
+            print(f"⚠️ Startup pre-processing failed: {e}")
         
         yield  # 서버가 실행되는 동안 여기서 대기합니다.
         
