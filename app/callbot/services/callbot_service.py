@@ -13,6 +13,7 @@ import boto3
 import requests
 from twilio.rest import Client as TwilioClient
 from datetime import datetime
+from loguru import logger
 
 # Disable Mem0 Telemetry to prevent PostHog connection errors
 os.environ["MEM0_TELEMETRY"] = "false"
@@ -200,11 +201,12 @@ class CallbotService(BaseService):
         session["elderly_id"] = elderly_id
         session["elderly_name"] = elderly_name
 
-        # [New] Start Call in Backend to get call_id
-        if elderly_id:
+        # [Modified] Check if call_id already exists (created by make_call_with_db)
+        # If not, create it here (fallback for direct Twilio calls)
+        call_id = session.get("call_id")
+        
+        if not call_id and elderly_id:
             try:
-                # Phone number is required by backend. If None, we might use a dummy or skip.
-                # Assuming phone_number is passed from controller.
                 p_num = phone_number if phone_number else "unknown"
                 call_id = await self._send_start_call_to_backend(elderly_id, elderly_name, p_num)
                 if call_id:
@@ -214,6 +216,8 @@ class CallbotService(BaseService):
                     print("⚠️ [Call Start] Failed to get Call ID from Backend.")
             except Exception as e:
                 print(f"❌ [Call Start] Backend Error: {e}")
+        elif call_id:
+            print(f"ℹ️ [Call Start] Using existing Call ID: {call_id}")
         
         name_part = f"{elderly_name}님 " if elderly_name else ""
         greeting = f"안녕하세요! {name_part}실버링크에서 연락드렸습니다. 잘 지내시죠?"
@@ -221,10 +225,6 @@ class CallbotService(BaseService):
         # [New] Save First Greeting to Backend
         if call_id:
             try:
-                # 첫 인사말 저장 (비동기 대신 await로 순서 보장 추천, 하지만 성능상 create_task도 가능. 
-                # 여기선 순서가 중요하므로 await를 고려하거나, 서버가 타임스탬프로 정렬하길 기대)
-                # 안전하게 await로 저장 후 진행하거나, create_task로 던짐.
-                # 에러 메시지("연결할 발화 없음")를 피하려면 어르신 답변보다 이게 먼저 DB에 들어가야 함.
                 await self._send_message_to_backend(call_id, "CALLBOT", greeting)
                 print("✅ [Call Start] Saved initial greeting to backend.")
             except Exception as e:
@@ -244,6 +244,33 @@ class CallbotService(BaseService):
         """
         return twiml
         
+    async def make_call_with_db(self, elderly_id: int, phone_number: str, elderly_name: str):
+        """통화 시작 + DB 저장 + call_id 반환"""
+        try:
+            # 1. 먼저 DB에 통화 기록 생성
+            call_id = await self._send_start_call_to_backend(elderly_id, elderly_name, phone_number)
+            
+            if not call_id:
+                logger.error("❌ [make_call_with_db] Failed to create call record in DB")
+                raise Exception("Failed to create call record")
+            
+            logger.info(f"✅ [make_call_with_db] Call record created: call_id={call_id}")
+            
+            # 2. Twilio 통화 시작
+            twilio_result = self.call.calling(elderly_id, phone_number, elderly_name)
+            
+            # 3. call_id를 포함한 결과 반환
+            return {
+                "call_id": call_id,
+                "twilio_result": twilio_result,
+                "elderly_id": elderly_id,
+                "elderly_name": elderly_name,
+                "phone_number": phone_number
+            }
+        except Exception as e:
+            logger.error(f"❌ [make_call_with_db] Error: {e}")
+            raise
+    
     def make_call(self, elderly_id: int, phone_number: str, elderly_name: str):
         return self.call.calling(elderly_id, phone_number, elderly_name)
 

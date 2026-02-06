@@ -28,7 +28,7 @@ class Configs(BaseSettings):
     # }
 
     PROJECT_ROOT: str = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    PORT: int = 5000
+    PORT: int = int(os.getenv("PORT", "8000"))
 
     # date
     DATETIME_FORMAT: str = "%Y-%m-%dT%H:%M:%S"
@@ -53,6 +53,12 @@ class Configs(BaseSettings):
     # Spring Boot backend
     SPRING_BOOT_URL: str = os.getenv("SPRING_BOOT_URL", "http://localhost:8080")
     SPRING_BOOT_API_TOKEN: str = os.getenv("SPRING_BOOT_API_TOKEN", "")
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # SPRING_BOOT_URL에 프로토콜이 없으면 http:// 추가
+        if self.SPRING_BOOT_URL and not self.SPRING_BOOT_URL.startswith(('http://', 'https://')):
+            self.SPRING_BOOT_URL = f'http://{self.SPRING_BOOT_URL}'
 
     # database
     # DB: str = os.getenv("DB", "postgresql")

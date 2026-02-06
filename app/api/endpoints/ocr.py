@@ -16,29 +16,6 @@ router = APIRouter(
 )
 
 
-# Request/Response 스키마
-class ValidateMedicationRequest(BaseModel):
-    ocr_text: str
-    elderly_user_id: Optional[int] = None
-
-
-class MedicationInfo(BaseModel):
-    medication_name: str
-    dosage: Optional[str] = None
-    times: List[str]
-    instructions: Optional[str] = None
-    confidence: float
-
-
-class ValidateMedicationResponse(BaseModel):
-    success: bool
-    medications: List[MedicationInfo]
-    raw_ocr_text: str
-    llm_analysis: str
-    warnings: List[str]
-    error_message: Optional[str] = None
-
-
 @router.get(
     "",
     summary="OCR 서비스 테스트",
@@ -59,7 +36,7 @@ def test_ocr_service(
     description="Luxia OCR 결과를 LLM으로 검증하고 약 정보를 추출합니다."
 )
 @inject_ocr
-def validate_medication_ocr(
+async def validate_medication_ocr(
     request: MedicationOCRRequest,
     service: OcrService = Depends(Provide[Container.ocr_service]),
 ):
@@ -100,16 +77,23 @@ def validate_medication_ocr(
     ```
     """
     try:
-        result = service.validate_medication_ocr(request)
+        # async 메서드 호출
+        result = await service.validate_medication(
+            ocr_text=request.ocr_text,
+            elderly_user_id=request.elderly_user_id
+        )
+        
+        # Dict를 MedicationOCRResponse로 변환
+        response = MedicationOCRResponse(**result)
         
         # 검증 실패 시 에러 응답
-        if not result.success and result.error_message:
+        if not response.success and response.error_message:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=result.error_message
+                detail=response.error_message
             )
         
-        return result
+        return response
         
     except HTTPException:
         raise
@@ -118,4 +102,3 @@ def validate_medication_ocr(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"OCR 검증 중 오류 발생: {str(e)}"
         )
-    

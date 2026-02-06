@@ -29,13 +29,18 @@ class OcrService(BaseService):
             # LLM 프롬프트 생성
             prompt = self._create_medication_extraction_prompt(ocr_text)
             
-            # LLM 호출
+            # LLM 호출 (비동기)
             messages = [
                 {"role": "system", "content": self._get_system_prompt()},
                 {"role": "user", "content": prompt}
             ]
             
-            response = self.llm.gpt(messages)
+            # 비동기 OpenAI API 호출
+            completion = await self.llm.aclient.chat.completions.create(
+                model=self.llm.model_version,
+                messages=messages
+            )
+            response = completion.choices[0].message.content
             logger.debug(f"LLM 응답: {response}")
             
             # 응답 파싱

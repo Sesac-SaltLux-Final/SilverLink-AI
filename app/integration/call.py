@@ -9,7 +9,7 @@ class CALL:
         self.number = number
         self.silverlink_number = silverlink_number
         
-    def calling(self, elderly_id: int, phone_number: str, elderly_name: str) -> None:
+    def calling(self, elderly_id: int, phone_number: str, elderly_name: str):
         # 계정 정보
         account_sid = self.account_sid
         auth_token = self.auth_token
@@ -23,7 +23,7 @@ class CALL:
         query_string = urllib.parse.urlencode(params)
         my_server_url = f"{self.url}/api/callbot/voice?{query_string}"
 
-        client.calls.create(
+        call = client.calls.create(
             to=phone_number,      # 받는 사람 번호
             from_=self.silverlink_number,    # Twilio 발신 번호
             url=my_server_url,        # 우리가 만든 AI 서버 주소
@@ -33,4 +33,12 @@ class CALL:
             recording_status_callback=f"{self.url}/api/callbot/s3-upload",
             recording_status_callback_method='POST'
         )
+        
+        # Twilio call 객체 반환 (call.sid 포함)
+        return {
+            "call_sid": call.sid,
+            "status": call.status,
+            "to": call.to,
+            "from": call.from_formatted  # from_ 대신 from_formatted 사용
+        }
         

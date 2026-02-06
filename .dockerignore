@@ -57,3 +57,7 @@ Thumbs.db
 Dockerfile*
 docker-compose*.yml
 .dockerignore
+
+# Local databases (Mem0, Qdrant, etc.)
+mem_db/
+qdrant_data/

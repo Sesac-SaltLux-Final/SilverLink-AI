@@ -78,35 +78,39 @@ def get_post_list(
     
 @router.post("/call")
 @inject_callbot
-def get_call(
+async def get_call(
     request: CallScheduleRequest,
     service: CallbotService = Depends(Provide[Container.callbot_service]),
     sqs_client: SQSClient = Depends(Provide[Container.sqs_client])
 ):
-    logger.info("📞 [GET /callbot/call] 전화 걸기 요청")
+    logger.info("📞 [POST /callbot/call] 전화 걸기 요청")
     try:
-        # SQS
+        # SQS 발행 (백그라운드 처리용)
         ####################################################
         message = CallRequestMessage(
             message_id=str(uuid.uuid4()),
-            # schedule_id=request.schedule_id,
             elderly_id=request.elderly_id,
             elderly_name=request.elderly_name,
             phone_number=request.phone_number,
-            # scheduled_time=request.scheduled_time,
             retry_count=0
         )
         
         message_id = sqs_client.publish(message)
         if message_id:
-            logger.info("✅ [POST /callbot/schedule-call] SQS 발행 성공")
+            logger.info("✅ [POST /callbot/call] SQS 발행 성공")
             logger.info("="*50)
         #####################################################
-        result = service.make_call(request.elderly_id,request.phone_number,request.elderly_name)
-        logger.info("✅ [GET /callbot/call] 전화 걸기 성공")
+        
+        # DB 저장 + 통화 시작 (call_id 반환)
+        result = await service.make_call_with_db(
+            request.elderly_id,
+            request.phone_number,
+            request.elderly_name
+        )
+        logger.info(f"✅ [POST /callbot/call] 전화 걸기 성공: call_id={result.get('call_id')}")
         return result
     except Exception as e:
-        logger.error(f"❌ [GET /callbot/call] 에러 발생: {e}")
+        logger.error(f"❌ [POST /callbot/call] 에러 발생: {e}")
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
