@@ -6,7 +6,7 @@ from datetime import date
 class MedicationOCRRequest(BaseModel):
     """OCR 원본 텍스트 요청"""
     ocr_text: str = Field(..., description="Luxia OCR에서 추출된 원본 텍스트")
-    elderly_user_id: int = Field(..., description="어르신 사용자 ID")
+    elderly_user_id: Optional[int] = Field(None, description="어르신 사용자 ID")
 
 
 class MedicationInfo(BaseModel):

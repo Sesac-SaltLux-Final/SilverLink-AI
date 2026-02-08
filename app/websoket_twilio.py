@@ -14,9 +14,9 @@ load_dotenv()
 
 app = FastAPI()
 
-# Configuration
-NGROK_URL = "https://woodrow-piercing-dan.ngrok-free.dev"
-LUXIA_API_KEY = "U2FsdGVkX1/zPckyiMbkAMUxVezgs680unloWvnlm07RRUnrMX0UpZ2dJKzftL/h2R8le1kGDY2UouxwlKgLprnC1FRLy+Rr+zTEkD04fDem1CVuU2mdiCJUhXRLcCqqv8EPuRnH9YfHtoOn19jMY+ze3k1Yb5PXpXIezow6MK/diOiyM/PnZWfROSeNEogh"
+# Configuration (환경변수에서 로드)
+NGROK_URL = os.getenv("CALL_CONTROLL_URL", "http://localhost:5000")
+LUXIA_API_KEY = os.getenv("LUXIA_API_KEY", "")
 
 # OpenAI Client
 aclient = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
