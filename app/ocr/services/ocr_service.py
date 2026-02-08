@@ -1,6 +1,6 @@
 import json
 import re
-from typing import Optional, List, Dict, Any
+from typing import Optional, Dict, Any
 from loguru import logger
 
 from app.ocr.repository.ocr_repository import OcrRepository

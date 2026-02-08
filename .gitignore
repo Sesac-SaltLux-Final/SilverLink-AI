@@ -196,3 +196,4 @@ ipython_config.py
 
 logs/
 mem_db/.lock
+mem_db/collection/silverlink_memories/storage.sqlite

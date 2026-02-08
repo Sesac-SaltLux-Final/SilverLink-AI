@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field, ConfigDict
 
 from app.core.container import Container
 from app.core.middleware import inject_callbot
-from app.callbot.services.callbot_service import CallbotService
+from app.callbot.services.callbot_service import CallbotService, CallSession
 from app.queue.sqs_client import SQSClient
 from app.queue.message_schema import CallRequestMessage
 from app.core.config import configs
@@ -279,9 +279,10 @@ async def gather(
                 retry_msg = urllib.parse.quote("죄송해요, 제가 잘 못 들었어요. 다시 한번 말씀해 주시겠어요?")
                 stream_url = f"{configs.CALL_CONTROLL_URL}/api/callbot/stream_response?text={retry_msg}&amp;call_sid={call_sid}&amp;mode=tts"
                 
+                hints = "밥, 식사, 아침, 점심, 저녁, 건강, 아파, 병원, 약, 기분, 좋아, 우울해, 심심해, 산책, 운동, 복지관, 노인정, 잠, 주무셨어, 꿈, 어르신, 안녕, 응, 그래, 아니"
                 twiml = f"""
                 <Response>
-                    <Gather input="speech" action="/api/callbot/gather?elderly_id={elderly_id}&amp;retry={retry_count + 1}" method="POST" language="ko-KR" speechTimeout="auto" bargeIn="true">
+                    <Gather input="speech" action="/api/callbot/gather?elderly_id={elderly_id}&amp;retry={retry_count + 1}" method="POST" language="ko-KR" speechTimeout="2.0" bargeIn="true" enhanced="true" hints="{hints}" profanityFilter="false">
                         <Play contentType="audio/basic">{stream_url}</Play>
                     </Gather>
                 </Response>
@@ -289,7 +290,7 @@ async def gather(
                 return Response(content=twiml, media_type="application/xml")
             else:
                 # 2차 무응답: 종료 안내 멘트 후 끊기
-                logger.info(f"🔇 [No Input] Max retries reached. Hanging up.")
+                logger.info("🔇 [No Input] Max retries reached. Hanging up.")
                 bye_msg = urllib.parse.quote("답변이 없으셔서 통화를 종료할게요. 다음에 또 연락드릴게요. 건강하세요!")
                 stream_url = f"{configs.CALL_CONTROLL_URL}/api/callbot/stream_response?text={bye_msg}&amp;call_sid={call_sid}&amp;mode=tts"
                 
@@ -334,7 +335,7 @@ async def gather(
             return Response(content=twiml, media_type="application/xml")
         
         # [Immediate Emergency Check] 응급 상황 감지
-        emergency_keywords = ["살려줘", "숨이 안", "숨 못", "가슴이 아파", "쓰러졌", "119", "죽을 것 같", "도와줘", "큰일났어", "아파"]
+        emergency_keywords = ["살려줘", "숨이 안", "숨 못", "가슴이 너무 아파", "쓰러졌", "119", "죽을 것 같", "도와줘", "큰일났어"]
         if any(k in speech_result for k in emergency_keywords):
             logger.info(f"🚨 [Immediate Emergency] Emergency detected: {speech_result}")
             emergency_msg = urllib.parse.quote("어르신 확인했습니다. 안전을 위해 담당 상담사님과 보호자님께 긴급알림을 즉시 전송하겠습니다.")
@@ -357,6 +358,11 @@ async def gather(
         encoded_input = urllib.parse.quote(speech_result)
         current_ts = datetime.now().timestamp()
         
+        # [Updated] 대화 히스토리 업데이트 (User 발화 추가)
+        if call_sid not in conversation_history:
+            conversation_history[call_sid] = []
+        conversation_history[call_sid].append({"user": speech_result, "ai": ""}) # AI 답변은 나중에 채워짐
+
         stream_url = f"{configs.CALL_CONTROLL_URL}/api/callbot/stream_response?text={encoded_input}&amp;call_sid={call_sid}&amp;mode=chat&amp;start_ts={current_ts}&amp;elderly_id={elderly_id}"
 
         # 2. 분석 및 저장은 백그라운드에서 천천히 수행
@@ -364,14 +370,33 @@ async def gather(
         background_tasks.add_task(service.process_conversation, call_sid, elderly_id, speech_result)
 
         # 3. TwiML 즉시 반환
-        twiml = f"""
-        <Response>
-            <Gather input="speech" action="/api/callbot/gather?elderly_id={elderly_id}" method="POST" language="ko-KR" speechTimeout="auto" bargeIn="true" timeout="5" speechModel="phone_call">
+        # [마무리 체크] 현재 목표가 '작별 인사'인 경우에만 전화를 끊도록 설정
+        session = CallSession.get_session(call_sid)
+        missing_slots = [k for k, v in session.get("slots", {}).items() if v is None]
+        current_target = missing_slots[0] if missing_slots else "작별 인사 및 건강 당부"
+        
+        # 진짜 마지막 단계(작별 인사)일 때만 끊기
+        is_finish = (current_target == "작별 인사 및 건강 당부")
+        
+        hints = "밥, 식사, 아침, 점심, 저녁, 건강, 아파, 병원, 약, 기분, 좋아, 우울해, 심심해, 산책, 운동, 우동,전복 죽,김치, 노인정,허리, 잠, 주무셨어, 꿈, 어르신, 안녕, 응, 그래, 아니"
+
+        if is_finish:
+            twiml = f"""
+            <Response>
                 <Play contentType="audio/basic">{stream_url}</Play>
-            </Gather>
-            <Redirect>/api/callbot/gather?elderly_id={elderly_id}&amp;retry=0</Redirect>
-        </Response>
-        """
+                <Pause length="5"/>
+                <Hangup/>
+            </Response>
+            """
+        else:
+            twiml = f"""
+            <Response>
+                <Gather input="speech" action="/api/callbot/gather?elderly_id={elderly_id}" method="POST" language="ko-KR" speechTimeout="auto" bargeIn="true" timeout="5" speechModel="phone_call" enhanced="true" hints="{hints}" profanityFilter="false">
+                    <Play contentType="audio/basic">{stream_url}</Play>
+                </Gather>
+                <Redirect>/api/callbot/gather?elderly_id={elderly_id}&amp;retry=0</Redirect>
+            </Response>
+            """
         return Response(content=twiml, media_type="application/xml")
         
     except Exception as e:
@@ -381,9 +406,11 @@ async def gather(
         # 에러 발생 시 안전하게 다시 묻기
         error_msg = urllib.parse.quote("죄송해요, 잠시 문제가 생겼어요. 다시 말씀해 주시겠어요?")
         stream_url = f"{configs.CALL_CONTROLL_URL}/api/callbot/stream_response?text={error_msg}&amp;call_sid={call_sid}&amp;mode=tts"
+        
+        hints = "밥, 식사, 아침, 점심, 저녁, 건강, 아파, 병원, 약, 기분, 좋아, 우울해, 심심해, 산책, 운동, 복지관, 노인정, 잠, 주무셨어, 꿈, 어르신, 안녕, 응, 그래, 아니"
         twiml = f"""
         <Response>
-            <Gather input="speech" action="/api/callbot/gather" method="POST" language="ko-KR" speechTimeout="auto" bargeIn="true">
+            <Gather input="speech" action="/api/callbot/gather" method="POST" language="ko-KR" speechTimeout="2.0" bargeIn="true" enhanced="true" hints="{hints}" profanityFilter="false">
                 <Play contentType="audio/basic">{stream_url}</Play>
             </Gather>
         </Response>

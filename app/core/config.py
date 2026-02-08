@@ -41,7 +41,7 @@ class Configs(BaseSettings):
 
     # --- Chatbot Configs ---
     # OpenAI
-    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4-turbo-preview")
+    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
     EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
 
     # Milvus / Zilliz
@@ -105,6 +105,12 @@ class Configs(BaseSettings):
     SILVERLINK_NUMBER:str = os.getenv("SILVERLINK_NUMBER")
     NUMBER:str = ''
     
+    # RDS (MySQL) 연결 정보
+    RDS_HOST: str = os.getenv("RDS_HOST", "localhost")
+    RDS_PORT: int = int(os.getenv("RDS_PORT", "3306"))
+    RDS_USER: str = os.getenv("RDS_USER", "root")
+    RDS_PASSWORD: str = os.getenv("RDS_PASSWORD", "")
+    RDS_DATABASE: str = os.getenv("RDS_DATABASE", "silverlink")
     # AWS SQS Configuration
     AWS_REGION: str = os.getenv("AWS_REGION", "ap-northeast-2")
     AWS_ACCESS_KEY_ID: str = os.getenv("AWS_ACCESS_KEY_ID", "")

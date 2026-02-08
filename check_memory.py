@@ -1,5 +1,4 @@
 import requests
-import json
 import sys
 
 def check_memory_via_api(elderly_id):
@@ -37,7 +36,7 @@ def check_memory_via_api(elderly_id):
                     print(f"  • {str(m)}")
             print("=" * 60)
         elif response.status_code == 404:
-            print(f"❌ 에러: API 엔드포인트를 찾을 수 없습니다. (404 Not Found)")
+            print("❌ 에러: API 엔드포인트를 찾을 수 없습니다. (404 Not Found)")
             print("💡 서버가 정상적으로 실행 중인지, 주소가 '/api/callbot/memory/...' 가 맞는지 확인하세요.")
         else:
             print(f"❌ 에러 발생 (상태 코드: {response.status_code})")
