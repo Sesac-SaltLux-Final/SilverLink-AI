@@ -1,8 +1,15 @@
-# 기술적 문제 해결 (Technical Resolutions)
-
+# 트러블슈팅 (Troubleshoot) & 벤치마킹 (Benchmarking)
 <br><br>
 
-## 1. TTS 스트리밍 및 백그라운드 분석 도입을 통한 응답 지연 시간 60% 단축 (5s → 2s)
+## 목차
+- [트러블슈팅](#트러블슈팅)
+- [벤치마킹](#벤치마킹)
+<br><br>
+
+## 트러블슈팅
+<br><br>
+
+### 1. TTS 스트리밍 및 백그라운드 분석 도입을 통한 응답 지연 시간 60% 단축 (5s → 2s)
 
 ```mermaid
 sequenceDiagram
@@ -50,7 +57,7 @@ sequenceDiagram
 
 <br><br>
 
-## 2. HTTPX 기반 비동기 통신 아키텍처 구축을 통한 백엔드 연동 효율화
+### 2. HTTPX 기반 비동기 통신 아키텍처 구축을 통한 백엔드 연동 효율화
 
 ```mermaid
 graph TD
@@ -79,7 +86,7 @@ graph TD
 
 <br><br>
 
-## 3. Deep-Dive 구조 설계를 통한 심층 안부 확인 및 대화 연속성 강화
+### 3. Deep-Dive 구조 설계를 통한 심층 안부 확인 및 대화 연속성 강화
 ```mermaid
 flowchart TD
     Start([사용자 발화 수신]) --> Extract[슬롯 정보 추출]
@@ -108,7 +115,7 @@ flowchart TD
 
 <br><br>
 
-## 4. AWS SQS 및 DLQ를 활용한 비동기 통화 요청의 신뢰성 확보 및 결함 허용(Fault Tolerance) 설계
+### 4. AWS SQS 및 DLQ를 활용한 비동기 통화 요청의 신뢰성 확보 및 결함 허용(Fault Tolerance) 설계
 ```mermaid
 flowchart LR
     Req[통화 요청] --> SQS[AWS SQS Main Queue]
@@ -137,7 +144,7 @@ flowchart LR
 
 <br><br>
 
-## 5. Microsoft Presidio 기반 실시간 개인정보 비식별화(Anonymization) 엔진 구축
+### 5. Microsoft Presidio 기반 실시간 개인정보 비식별화(Anonymization) 엔진 구축
 ```mermaid
 flowchart LR
     Raw[사용자 발화 텍스트] --> Detect[Presidio 감지기<br/>Regex + NLP]
@@ -161,3 +168,11 @@ flowchart LR
 - **결과**
   - 외부 API로 전송되는 데이터 내 실제 개인정보 노출 0% 달성 및 프라이버시 강화
   - 개인정보 보호 가이드라인을 준수하는 신뢰할 수 있는 AI 돌봄 서비스 기반 마련
+
+
+## 벤치마킹
+<br><br>
+
+### 1. STT
+
+### 2. LLM
