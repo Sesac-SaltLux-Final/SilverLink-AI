@@ -168,11 +168,15 @@ flowchart LR
 - **결과**
   - 외부 API로 전송되는 데이터 내 실제 개인정보 노출 0% 달성 및 프라이버시 강화
   - 개인정보 보호 가이드라인을 준수하는 신뢰할 수 있는 AI 돌봄 서비스 기반 마련
-
+<br><br>
 
 ## 벤치마킹
 <br><br>
 
 ### 1. STT
+<img width="1200" height="500" alt="" src="STT평가지표.png" />
+<br><br>
 
 ### 2. LLM
+<img width="1200" height="500" alt="" src="LLM평가지표.png" />
+<br><br>
