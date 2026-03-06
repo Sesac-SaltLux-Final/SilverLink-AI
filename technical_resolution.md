@@ -12,35 +12,38 @@
 ### 1. TTS 스트리밍 및 백그라운드 분석 도입을 통한 응답 지연 시간 60% 단축 (5s → 2s)
 
 ```mermaid
-sequenceDiagram
-    participant U as 어르신 (User)
-    participant S as Callbot Service
-    participant LLM as GPT-4o-mini (Stream)
-    participant TTS as Luxia TTS (u-law)
-    participant BG as Async Analysis Pipeline
-
-    U->>S: 사용자 발화 완료 (STT)
-    
-    par [Fast Path] 실시간 응답 생성 (TTFB < 1s)
-        S->>LLM: 응답 스트리밍 요청
-        loop 문장 조각(Chunk) 단위 처리
-            LLM-->>S: "안녕하세요." (Chunk 1)
-            S->>TTS: 즉시 TTS 변환 요청
-            TTS-->>S: u-law 오디오 데이터
-            S->>U: 실시간 음성 송출 (재생 시작)
-            LLM-->>S: "밥은 드셨나요?" (Chunk 2)
-            S->>TTS: 즉시 TTS 변환 요청
-            TTS-->>S: u-law 오디오 데이터
-            S->>U: 실시간 음성 송출
-        end
-    and [Slow Path] 비동기 데이터 분석
-        S->>BG: PII 필터링 & 슬롯 추출 시작
-        BG->>BG: 의도 파악 및 감정 분석
-        BG-->>S: 분석 결과 반환 (Sync 대기)
+graph TD
+    %% [1] 상단: 기존 방식
+    subgraph AS_IS ["직렬 처리 구조의 한계"]
+        direction LR
+        A1[사용자 발화] --> B1[NLU 분석]
+        B1 --> C1[LLM 생성 대기]
+        C1 --> D1[TTS 음성 변환]
+        D1 --> E1{5.2s 지연}
     end
-    
-    S->>S: Fast LLM 응답 완료 확인 (Session Sync)
-    S->>Backend: [최종] 분석 데이터 + 대화 내역 저장
+
+    %% 연결 화살표 (상하 배치 유도)
+    AS_IS ==> TO_BE
+
+    %% [2] 하단: 개선 방식
+    subgraph TO_BE ["개선 방식"]
+        direction LR
+        A2[사용자 발화] --> B2{Async 기동}
+        
+        %% 병렬 구조 시각화
+        B2 --> C2[백그라운드 NLU]
+        B2 --> D2[LLM 스트리밍]
+        
+        D2 --> E2[Chunked TTS]
+        E2 --> F2[u-law 캐싱]
+        F2 --> G2{1.8s 응답}
+    end
+
+    %% 스타일링
+    %% 스타일링 (글씨색을 검은색 #000으로 명시)
+    style E1 fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#000
+    style B2 fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#000
+    style G2 fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#000
 ```
 - **문제 원인 (Bottleneck)**
   - **직렬 처리 구조의 한계**: `[문장 생성] → [음성 변환(TTS)] → [재생]`의 순차적 동작으로 인해 문장이 길어질수록 어르신이 체감하는 대기 시간이 **평균 5초 이상** 발생
@@ -169,7 +172,7 @@ flowchart LR
   - 외부 API로 전송되는 데이터 내 실제 개인정보 노출 0% 달성 및 프라이버시 강화
   - 개인정보 보호 가이드라인을 준수하는 신뢰할 수 있는 AI 돌봄 서비스 기반 마련
 <br><br>
-
+<br><br>
 ## 벤치마킹
 <br><br>
 
