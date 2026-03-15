@@ -16,7 +16,7 @@ graph TD
     %% [1] 상단: 기존 방식
     subgraph AS_IS ["직렬 처리 구조의 한계"]
         direction LR
-        A1[사용자 발화] --> B1[NLU 분석]
+        A1[사용자 발화] --> B1[의도 분류]
         B1 --> C1[LLM 생성 대기]
         C1 --> D1[TTS 음성 변환]
         D1 --> E1{5.2s 지연}
@@ -31,7 +31,7 @@ graph TD
         A2[사용자 발화] --> B2{Async 기동}
         
         %% 병렬 구조 시각화
-        B2 --> C2[백그라운드 NLU]
+        B2 --> C2[백그라운드]
         B2 --> D2[LLM 스트리밍]
         
         D2 --> E2[Chunked TTS]
