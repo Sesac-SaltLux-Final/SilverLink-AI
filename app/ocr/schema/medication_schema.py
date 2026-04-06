@@ -19,6 +19,7 @@ class MedicationInfo(BaseModel):
     times: List[str] = Field(default_factory=list, description="복용 시간 (morning, noon, evening, night)")
     instructions: Optional[str] = Field(None, description="복용 방법 (예: 식후 30분)")
     confidence: float = Field(..., description="신뢰도 (0.0 ~ 1.0)")
+    category: Optional[str] = Field("기타", description="약 카테고리 (혈압약, 당뇨약, 감기약, 위장약, 진통제, 수면제, 비타민, 기타)")
 
 
 class MedicationOCRResponse(BaseModel):
