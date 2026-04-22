@@ -113,6 +113,17 @@ class Configs(BaseSettings):
     SQS_DLQ_URL: str = os.getenv("SQS_DLQ_URL", "")
     AWS_S3_BUCKET_NAME: str = os.getenv("AWS_S3_BUCKET_NAME", "silverlink-storage")
 
+    # Redis 연결 정보
+    REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
+    REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
+    REDIS_PASSWORD: str = os.getenv("REDIS_PASSWORD", "")
+    REDIS_DB_CHECKPOINT: int = int(os.getenv("REDIS_DB_CHECKPOINT", "0"))  # LangGraph 세션 체크포인터
+    REDIS_DB_CACHE: int = int(os.getenv("REDIS_DB_CACHE", "1"))            # Semantic Cache
+
+    # Semantic Cache 설정
+    SEMANTIC_CACHE_THRESHOLD: float = float(os.getenv("SEMANTIC_CACHE_THRESHOLD", "0.95"))
+    SEMANTIC_CACHE_TTL: int = int(os.getenv("SEMANTIC_CACHE_TTL", "86400"))  # 24시간
+
     class Config:
         case_sensitive = True
 
